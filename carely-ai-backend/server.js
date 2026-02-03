@@ -111,14 +111,23 @@ const transcription = await openai.audio.transcriptions.create({
 
     /* 3️⃣ Escalation detection */
     const escalationTriggers = [
-      'severe pain',
-      'chest pain',
-      'shortness of breath',
-      'bleeding',
-      'बहुत दर्द',
-      'सांस नहीं',
-      'खून',
-    ];
+  'severe pain',
+  'extreme pain',
+  'very bad pain',
+  'chest pain',
+  'shortness of breath',
+  'can’t breathe',
+  'difficulty breathing',
+  'bleeding',
+  'bleeding a lot',
+  'faint',
+  'dizzy',
+  'बहुत दर्द',
+  'तेज़ दर्द',
+  'सांस नहीं',
+  'खून',
+];
+
 
     const needsNurse = escalationTriggers.some(t =>
       spokenText.toLowerCase().includes(t)
@@ -246,6 +255,35 @@ RULES:
   }
 });
 
+const lowerSpoken = spokenText.toLowerCase();
+
+const needsNurse = escalationTriggers.some(trigger =>
+  lowerSpoken.includes(trigger)
+);
+
+if (needsNurse) {
+  const escalationMessage = isHindi
+    ? 'मैं Carely नर्स को तुरंत सूचित कर रहा हूँ। वे जल्द ही आपसे संपर्क करेंगी।'
+    : 'I will alert the Carely nurse, and they will reach out to you shortly.';
+
+  const speech = await openai.audio.speech.create({
+    model: 'gpt-4o-mini-tts',
+    voice: 'alloy',
+    input: escalationMessage,
+    language: isHindi ? 'hi-IN' : 'en-US',
+  });
+
+  const audioBuffer = Buffer.from(await speech.arrayBuffer());
+
+  return res.json({
+    transcription: spokenText,
+    responseText: escalationMessage,
+    audioBase64: audioBuffer.toString('base64'),
+    alert: true,
+    language: isHindi ? 'hi' : 'en',
+  });
+}
+
 app.post('/api/discharge/intro', async (req, res) => {
   try {
     const { dischargeSummary } = req.body;
@@ -261,10 +299,19 @@ const initialPrompt = isHindi
       temperature: 0.3,
       messages: [
         {
-          role: 'system',
-          content:
-            'You are a caring hospital follow-up assistant.'
-        },
+  role: 'system',
+  content: `
+You are a patient follow-up voice assistant.
+
+Rules:
+- If the patient describes severe or dangerous symptoms, DO NOT ask questions
+- DO NOT ask to rate pain
+- Respond ONLY with a calm reassurance that a nurse will contact them
+- Otherwise, ask one gentle follow-up question
+- Do not diagnose
+`
+}
+        ,
         {
           role: 'user',
           content: `
