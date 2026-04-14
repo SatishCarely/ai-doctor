@@ -12,10 +12,14 @@
   "type": "module",
   "dependencies": {
     "cors": "^2.8.6",
+    "docxtemplater": "^3.68.2",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "mongoose": "^9.2.1",
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
-    "openai": "^6.17.0"
+    "openai": "^6.17.0",
+    "pizzip": "^3.2.0",
+    "xlsx": "^0.18.5"
   }
 }
