@@ -1,6 +1,6 @@
 node_modules/
 .env
-uploads/
+**/uploads/
 dist/
 build/
 .DS_Store
