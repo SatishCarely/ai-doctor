@@ -1,8 +1,9 @@
 {
   "name": "carely-ai-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,11 +16,12 @@
     "docxtemplater": "^3.68.2",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "mongoose": "^9.2.1",
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "openai": "^6.17.0",
     "pizzip": "^3.2.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
   }
 }

@@ -7,15 +7,10 @@ import cors from 'cors';
 import OpenAI from 'openai';
 import XLSX from 'xlsx';
 import QRCode from 'qrcode';
-import CareTemplate from './models/CareTemplate.js';
-import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import os from 'os';
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB Error:', err));
+import { createHmac } from 'crypto';
 
 const app = express();
 
@@ -25,6 +20,8 @@ app.use(express.json());
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
+
+const PORT = process.env.PORT || 3000;
 
 /* =====================
    Multer
@@ -44,9 +41,7 @@ const upload = multer({
 /* =====================
    OpenAI Client + Tracker
 ===================== */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy', });
 
 let openaiCallCount = 0;
 
@@ -76,9 +71,12 @@ const DOCTOR_TTS_INSTRUCTIONS = [
 const DOCTOR_TTS_SPEED = 0.94;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DEFAULT_KYC_PDF_PATH = path.resolve(__dirname, '../kyc-templates/default-kyc.pdf');
+const DEFAULT_KYC_PDF_PATH = path.resolve(__dirname, './kyc-templates/default-kyc.pdf');
 const BEY_API_BASE = 'https://api.bey.dev';
-const BEY_API_KEY = process.env.BEYOND_PRESENCE_API_KEY;
+const BEY_API_KEY = process.env.BEY_API_KEY;
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const BEY_SUPPORTED_LANGUAGE_CODES = new Set([
   'ar', 'ar-SA', 'bn', 'bg', 'zh', 'cs', 'da', 'nl', 'en', 'en-AU', 'en-GB', 'en-US',
   'fi', 'fr', 'fr-CA', 'fr-FR', 'de', 'el', 'hi', 'hu', 'id', 'it', 'ja', 'kk', 'ko',
@@ -101,9 +99,24 @@ const panUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+const s2vSessions = new Map();
+const S2V_SESSION_TTL_MS = 30 * 60 * 1000;
 
 function getKycLanguageName(code) {
   return KYC_LANGUAGE_NAMES[code] || 'English';
+}
+
+async function generateTTS(text) {
+  const speech = await openai.audio.speech.create({
+    model: 'gpt-4o-mini-tts',
+    voice: 'shimmer',
+    input: text,
+    instructions: DOCTOR_TTS_INSTRUCTIONS,
+    speed: DOCTOR_TTS_SPEED,
+  });
+
+  const buffer = Buffer.from(await speech.arrayBuffer());
+  return buffer.toString('base64');
 }
 
 function getBeyondPresenceLanguageCode(code) {
@@ -112,6 +125,65 @@ function getBeyondPresenceLanguageCode(code) {
     return normalized;
   }
   return BEY_LANGUAGE_FALLBACKS[normalized] || 'en';
+}
+
+function base64UrlEncode(value) {
+  const input = typeof value === 'string' ? value : JSON.stringify(value);
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function createJwtHS256(payload, secret) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const encodedHeader = base64UrlEncode(header);
+  const encodedPayload = base64UrlEncode(payload);
+  const signature = createHmac('sha256', secret)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
+function createLiveKitJoinToken({
+  roomName,
+  identity,
+  name = identity,
+  ttlSeconds = 60 * 60,
+  canPublish = true,
+  canSubscribe = true,
+  canPublishData = true,
+  hidden = false,
+  metadata = '',
+}) {
+  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+    throw new Error('LIVEKIT_API_KEY or LIVEKIT_API_SECRET not configured');
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  return createJwtHS256(
+    {
+      iss: LIVEKIT_API_KEY,
+      sub: identity,
+      name,
+      metadata,
+      nbf: now - 10,
+      exp: now + ttlSeconds,
+      video: {
+        room: roomName,
+        roomJoin: true,
+        canPublish,
+        canSubscribe,
+        canPublishData,
+        hidden,
+      },
+    },
+    LIVEKIT_API_SECRET
+  );
 }
 
 function getLocalIP() {
@@ -131,6 +203,15 @@ setInterval(() => {
   for (const [id, session] of panSessions) {
     if (now - session.createdAt > PAN_SESSION_TTL_MS) {
       panSessions.delete(id);
+    }
+  }
+}, 60_000);
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of s2vSessions) {
+    if (now - session.createdAt > S2V_SESSION_TTL_MS) {
+      s2vSessions.delete(id);
     }
   }
 }, 60_000);
@@ -462,6 +543,7 @@ async function normalizeKycAnswer({
 }) {
   const fieldLabel = String(currentFieldLabel || '').trim();
   const fieldType = String(currentFieldType || '').trim() || 'text';
+  const normalizedLabel = fieldLabel.toLowerCase();
   const trimmed = String(text || '').trim();
   if (!trimmed) {
     return { englishText: '', canonicalYesNo: null };
@@ -968,6 +1050,11 @@ async function trackOpenAICall(label, fn) {
   }
 }
 
+/*Health Check Endpoint */
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: Date.now() });
+});
+
 /* =====================
    /api/analyze
 ===================== */
@@ -1016,7 +1103,7 @@ app.post('/api/voice', upload.single('audio'), async (req, res) => {
       fs.unlinkSync(filePath);
       return res.json({
         transcription: '',
-        responseText: 'I didn’t catch that. Please try speaking a bit longer.',
+        responseText: 'I didn\'t catch that. Please try speaking a bit longer.',
         audioBase64: null,
         alert: false,
       });
@@ -1287,6 +1374,7 @@ app.get('/api/kyc/preloaded-document', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // =====================
 // /api/kyc/extract-fields
 // =====================
@@ -1298,7 +1386,6 @@ app.post('/api/kyc/extract-fields', async (req, res) => {
       return res.status(400).json({ error: 'Missing text' });
     }
 
-    // Leave room for multi-page KYC forms while still capping request size.
     const trimmed = text.slice(0, 30000);
 
     const messages = [
@@ -1524,7 +1611,19 @@ app.post('/api/sarvam/transcribe', upload.single('audio'), async (req, res) => {
 app.post('/api/beyondpresence/start-session', async (req, res) => {
   try {
     if (!BEY_API_KEY) {
-      return res.status(500).json({ error: 'BEYOND_PRESENCE_API_KEY not configured' });
+      return res.status(500).json({
+        error: 'BEYOND_PRESENCE_API_KEY not configured',
+        code: 'beyondpresence_not_configured',
+        retryable: false,
+      });
+    }
+
+    if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+      return res.status(500).json({
+        error: 'LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET must be configured for Beyond Presence speech-to-video. For local LiveKit dev, run `livekit-server --dev --bind 0.0.0.0` and set LIVEKIT_URL=ws://127.0.0.1:7880, LIVEKIT_API_KEY=devkey, LIVEKIT_API_SECRET=secret.',
+        code: 'livekit_not_configured',
+        retryable: false,
+      });
     }
 
     const {
@@ -1538,7 +1637,7 @@ app.post('/api/beyondpresence/start-session', async (req, res) => {
     const requestedLanguage = String(language || preferredLanguage || 'en').trim();
     const providerLanguage = getBeyondPresenceLanguageCode(requestedLanguage);
     if (providerLanguage !== requestedLanguage) {
-      console.log(`[BeyondPresence] Falling back language ${requestedLanguage} -> ${providerLanguage}`);
+      console.log(`[S2V] Falling back language ${requestedLanguage} -> ${providerLanguage}`);
     }
 
     const fieldListBase = kycFields
@@ -1550,6 +1649,10 @@ app.post('/api/beyondpresence/start-session', async (req, res) => {
         return `${i + 1}. ${promptText}${genderTag}`;
       })
       .join('\n');
+    const fieldListText =
+      preferredLanguage && preferredLanguage !== 'en'
+        ? await localizeKycText(fieldListBase, preferredLanguage)
+        : fieldListBase;
 
     const firstFieldPrompt =
       String(openingPrompt || '').trim() ||
@@ -1557,10 +1660,6 @@ app.post('/api/beyondpresence/start-session', async (req, res) => {
       `What is your ${String(kycFields[0]?.label || 'application number').toLowerCase()}?`;
 
     const baseGreetingText = `Hi, my name is Dr. Christiana. Let's get started with your medical examination report. ${firstFieldPrompt}`;
-    const fieldList =
-      preferredLanguage && preferredLanguage !== 'en'
-        ? await localizeKycText(fieldListBase, preferredLanguage)
-        : fieldListBase;
     const greetingText =
       preferredLanguage && preferredLanguage !== 'en'
         ? await localizeKycText(baseGreetingText, preferredLanguage)
@@ -1570,15 +1669,14 @@ app.post('/api/beyondpresence/start-session', async (req, res) => {
         ? `Speak only in ${languageName} for all patient-facing responses. The provider session language is set to ${providerLanguage} only for compatibility, so do not switch to English or Hindi unless the patient asks.`
         : `Speak only in ${languageName} for all patient-facing responses.`;
 
-    const systemPrompt = `You are Dr. Christiana, a warm professional doctor helping a patient complete a KYC medical form during a video call.
+    const kycSystemPrompt = `You are Dr. Christiana, a warm professional doctor helping a patient complete a KYC medical form during a video call.
 
 ${speechInstruction} Be empathetic, calm, natural, and brief. Keep each reply under 35 words.
 
 Ask these fields one by one in order. The list below is the phrasing to follow for the patient:
-${fieldList}
+${fieldListText}
 
 Rules:
-- Start with: "${greetingText}"
 - Ask only one field at a time and wait for the answer before moving on.
 - If gender is male, skip all [FEMALE ONLY] fields silently. If gender is female, skip all [MALE ONLY] fields silently.
 - Never use ALL CAPS, shouting, or dramatic emphasis.
@@ -1593,65 +1691,352 @@ Rules:
 
     const avatarId = 'f30d7eef-6e71-433f-938d-cecdd8c0b653';
 
-    console.log('[BeyondPresence] Creating agent...');
-    const agentRes = await fetch(`${BEY_API_BASE}/v1/agents`, {
+    const roomName = `carely-s2v-${uuidv4().slice(0, 12)}`;
+    const patientIdentity = `patient-${uuidv4().slice(0, 8)}`;
+    const avatarIdentity = `avatar-${uuidv4().slice(0, 8)}`;
+    const patientToken = createLiveKitJoinToken({
+      roomName,
+      identity: patientIdentity,
+      name: 'Patient',
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    });
+    const avatarToken = createLiveKitJoinToken({
+      roomName,
+      identity: avatarIdentity,
+      name: 'Dr. Christiana',
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: false,
+      hidden: false,
+    });
+
+    console.log('[S2V] Creating Beyond Presence speech-to-video session...');
+    const sessionRes = await fetch(`${BEY_API_BASE}/v1/sessions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': BEY_API_KEY,
       },
       body: JSON.stringify({
-        name: 'Dr. Christiana KYC Assistant',
         avatar_id: avatarId,
-        system_prompt: systemPrompt,
-        language: providerLanguage,
-        greeting: greetingText,
-        max_session_length_minutes: 30,
-        llm: { type: 'openai' },
+        url: LIVEKIT_URL,
+        token: avatarToken,
+        transport: 'livekit',
       }),
     });
 
-    const agentData = await agentRes.json();
-    if (!agentRes.ok) {
-      console.error('[BeyondPresence] Agent creation failed:', agentData);
-      return res.status(agentRes.status || 500).json({
-        error: extractProviderErrorMessage(agentData, 'Failed to create Beyond Presence agent'),
+    const sessionData = await sessionRes.json();
+    if (!sessionRes.ok || !sessionData?.id) {
+      console.error('[S2V] Session creation failed:', sessionData);
+      return res.status(sessionRes.status || 500).json({
+        error: extractProviderErrorMessage(sessionData, 'Failed to create speech-to-video session'),
+        code: 'beyondpresence_session_creation_failed',
+        retryable: true,
       });
     }
 
-    const agentId = agentData.id;
-    console.log(`[BeyondPresence] Agent created: ${agentId}`);
+    console.log(`[S2V] Speech-to-video session started: ${sessionData.id}`);
 
-    const callRes = await fetch(`${BEY_API_BASE}/v1/calls`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': BEY_API_KEY,
-      },
-      body: JSON.stringify({
-        agent_id: agentId,
-        livekit_username: 'Patient',
-      }),
+    const conversationId = `s2v_${sessionData.id}_${Date.now()}`;
+    s2vSessions.set(conversationId, {
+      createdAt: Date.now(),
+      sessionId: sessionData.id,
+      roomName,
+      patientIdentity,
+      avatarIdentity,
+      preferredLanguage,
+      languageName,
+      kycSystemPrompt,
+      greetingText,
+
+      fields: kycFields,        // ✅ ADD THIS
+      currentStep: 0,           // ✅ ADD THIS
+      answers: {},              // ✅ ADD THIS
+      started: false,           // ✅ ADD THIS
+
+
+      messages: [
+        { role: 'system', content: kycSystemPrompt },
+        { role: 'assistant', content: greetingText },
+      ],
     });
 
-    const callData = await callRes.json();
-    if (!callRes.ok) {
-      console.error('[BeyondPresence] Call creation failed:', callData);
-      return res.status(callRes.status || 500).json({
-        error: extractProviderErrorMessage(callData, 'Failed to create Beyond Presence call'),
-      });
+    let greetingAudioBase64 = null;
+    try {
+      const speech = await trackOpenAICall('S2V greeting TTS', () =>
+        openai.audio.speech.create({
+          model: 'gpt-4o-mini-tts',
+          voice: 'shimmer',
+          input: greetingText,
+          instructions: DOCTOR_TTS_INSTRUCTIONS,
+          speed: DOCTOR_TTS_SPEED,
+        })
+      );
+      const audioBuffer = Buffer.from(await speech.arrayBuffer());
+      greetingAudioBase64 = audioBuffer.toString('base64');
+    } catch (err) {
+      console.warn('[S2V] Greeting TTS failed:', err.message);
     }
-
-    console.log(`[BeyondPresence] Call started: ${callData.id}`);
 
     res.json({
-      callId: callData.id,
-      agentId,
-      livekitUrl: callData.livekit_url,
-      livekitToken: callData.livekit_token,
+      sessionId: sessionData.id,
+      callId: sessionData.id,
+      conversationId,
+      livekitUrl: LIVEKIT_URL,
+      livekitToken: patientToken,
+      greetingText,
+      greetingAudioBase64,
+      mode: 'speech_to_video',
     });
   } catch (err) {
-    console.error('BEYOND PRESENCE START ERROR:', err);
+    console.error('S2V START ERROR:', err);
+    res.status(500).json({ error: err.message, retryable: false });
+  }
+});
+
+
+app.post('/api/discharge/intro', async (req, res) => {
+  try {
+    const { dischargeSummary } = req.body || {};
+    if (!dischargeSummary) return res.json({ introText: 'Discharge summary uploaded.' });
+    const completion = await trackOpenAICall('discharge intro', () =>
+      openai.chat.completions.create({
+        model: 'gpt-4o-mini', temperature: 0.3, max_tokens: 150,
+        messages: [
+          { role: 'system', content: 'Briefly acknowledge the discharge summary in 2-3 sentences, mention the main condition if visible, and offer to help. Be warm and concise.' },
+          { role: 'user', content: dischargeSummary.slice(0, 2000) },
+        ],
+      })
+    );
+    res.json({ introText: completion.choices[0]?.message?.content?.trim() || 'Discharge summary received.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.get('/api/beyondpresence/call-messages/:callId', async (req, res) => {
+  try {
+    if (!BEY_API_KEY) return res.status(500).json({ error: 'BEYOND_PRESENCE_API_KEY not configured' });
+    const { callId } = req.params;
+    const messagesRes = await fetch(`${BEY_API_BASE}/v1/calls/${callId}/messages`, {
+      headers: { 'x-api-key': BEY_API_KEY },
+    });
+    const messagesData = await messagesRes.json();
+    res.json(messagesData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.get('/api/beyondpresence/agent-call-messages/:agentId', async (req, res) => {
+  try {
+    if (!BEY_API_KEY) return res.status(500).json({ error: 'BEYOND_PRESENCE_API_KEY not configured' });
+    const { agentId } = req.params;
+    const callsRes = await fetch(`${BEY_API_BASE}/v1/calls?limit=50`, {
+      headers: { 'x-api-key': BEY_API_KEY },
+    });
+    const callsData = await callsRes.json();
+    if (!callsRes.ok) return res.status(callsRes.status || 500).json({ error: extractProviderErrorMessage(callsData) });
+
+    const calls = Array.isArray(callsData?.data) ? callsData.data : [];
+    const latestCall = calls
+      .filter((call) => call.agent_id === agentId)
+      .sort((a, b) => new Date(b.started_at || 0) - new Date(a.started_at || 0))[0];
+
+    if (!latestCall?.id) return res.json({ callId: null, messages: [], call: null });
+
+    const messagesRes = await fetch(`${BEY_API_BASE}/v1/calls/${latestCall.id}/messages`, {
+      headers: { 'x-api-key': BEY_API_KEY },
+    });
+    const messagesData = await messagesRes.json();
+    if (!messagesRes.ok) return res.status(messagesRes.status || 500).json({ error: extractProviderErrorMessage(messagesData) });
+
+    res.json({ callId: latestCall.id, call: latestCall, messages: Array.isArray(messagesData) ? messagesData : [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// =====================
+// /api/beyondpresence/process-speech
+// =====================
+app.post('/api/beyondpresence/process-speech', upload.single('audio'), async (req, res) => {
+  const filePath = req.file?.path;
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    const conversationId = String(req.body?.conversationId || '').trim();
+    const preferredLanguage = String(req.body?.preferredLanguage || 'en').trim().toLowerCase();
+
+    // ==========================
+    // GET SESSION (MANDATORY)
+    // ==========================
+    const session = s2vSessions.get(conversationId);
+
+    if (!session) {
+      return res.status(400).json({
+        error: 'Session not found. Please start session again.',
+      });
+    }
+
+    const fields = session.fields || [];
+
+    if (!fields.length) {
+      return res.status(400).json({
+        error: 'No KYC fields found in session',
+      });
+    }
+
+    // ==========================
+    // CHECK AUDIO SIZE
+    // ==========================
+    const stats = fs.statSync(filePath);
+
+    if (stats.size < 800) {
+      if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+      return res.json({
+        transcript: '',
+        responseText: '',
+        audioBase64: null,
+        conversationId,
+        skipped: true,
+      });
+    }
+
+    // ==========================
+    // TRANSCRIBE AUDIO
+    // ==========================
+    const transcriptionConfig = {
+      file: fs.createReadStream(filePath),
+      model: 'whisper-1',
+      temperature: 0,
+    };
+
+    if (preferredLanguage && preferredLanguage !== 'en') {
+      transcriptionConfig.language = preferredLanguage;
+    }
+
+    const transcription = await trackOpenAICall('S2V Whisper ASR', () =>
+      openai.audio.transcriptions.create(transcriptionConfig)
+    );
+
+    const transcript = String(transcription.text || '').trim();
+
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    if (!transcript) {
+      return res.json({
+        transcript: '',
+        responseText: '',
+        audioBase64: null,
+        conversationId,
+        skipped: true,
+      });
+    }
+
+    console.log(`[S2V] User said: "${transcript}"`);
+
+    // ==========================
+    // SAVE ANSWER
+    // ==========================
+    const currentField = fields[session.currentStep];
+
+    if (currentField) {
+      session.answers[currentField.id] = transcript;
+      console.log(`Saved [${currentField.id}] → ${transcript}`);
+    }
+
+    // ==========================
+    // MOVE TO NEXT STEP
+    // ==========================
+    session.currentStep++;
+
+    // ==========================
+    // COMPLETE FLOW
+    // ==========================
+    if (session.currentStep >= fields.length) {
+      const doneText = 'Thank you. Your KYC is complete.';
+
+      return res.json({
+        transcript,
+        responseText: doneText,
+        audioBase64: await generateTTS(doneText),
+        conversationId,
+      });
+    }
+
+    // ==========================
+    // NEXT QUESTION
+    // ==========================
+    const nextField = fields[session.currentStep];
+    const nextQuestion = nextField?.prompt || nextField?.label || 'Please continue';
+
+    return res.json({
+      transcript,
+      responseText: nextQuestion,
+      audioBase64: await generateTTS(nextQuestion),
+      conversationId,
+    });
+
+  } catch (err) {
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch { }
+    }
+
+    console.error('S2V PROCESS-SPEECH ERROR:', err);
+
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+// =====================
+// /api/beyondpresence/send-greeting
+// =====================
+app.post('/api/beyondpresence/send-greeting', async (req, res) => {
+  try {
+    const { conversationId } = req.body || {};
+    const session = s2vSessions.get(conversationId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    if (!session.greetingText) {
+      return res.json({ text: '', audioBase64: null });
+    }
+
+    const speech = await trackOpenAICall('S2V greeting TTS', () =>
+      openai.audio.speech.create({
+        model: 'gpt-4o-mini-tts',
+        voice: 'shimmer',
+        input: session.greetingText,
+        instructions: DOCTOR_TTS_INSTRUCTIONS,
+        speed: DOCTOR_TTS_SPEED,
+      })
+    );
+
+    const audioBuffer = Buffer.from(await speech.arrayBuffer());
+
+    if (!session.messages.some((message) => message.role === 'assistant')) {
+      session.messages.push({ role: 'assistant', content: session.greetingText });
+    }
+
+    res.json({
+      text: session.greetingText,
+      audioBase64: audioBuffer.toString('base64'),
+    });
+  } catch (err) {
+    console.error('S2V GREETING ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1661,8 +2046,10 @@ Rules:
 // =====================
 app.post('/api/beyondpresence/stop-session', async (req, res) => {
   try {
-    const { agentId } = req.body || {};
+    const { sessionId, callId, conversationId, agentId } = req.body || {};
+    const targetSessionId = sessionId || callId;
 
+    // Handle iframe_embed mode (agent cleanup)
     if (agentId && BEY_API_KEY) {
       await fetch(`${BEY_API_BASE}/v1/agents/${agentId}`, {
         method: 'DELETE',
@@ -1670,31 +2057,37 @@ app.post('/api/beyondpresence/stop-session', async (req, res) => {
       }).catch((err) => console.warn('[BeyondPresence] Agent cleanup failed:', err));
     }
 
+    // Handle speech_to_video mode (session cleanup)
+    if (targetSessionId && BEY_API_KEY) {
+      const endpoints = [
+        { method: 'POST', url: `${BEY_API_BASE}/v1/sessions/${targetSessionId}/end` },
+        { method: 'POST', url: `${BEY_API_BASE}/v1/sessions/${targetSessionId}/stop` },
+        { method: 'PATCH', url: `${BEY_API_BASE}/v1/sessions/${targetSessionId}` },
+      ];
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint.url, {
+            method: endpoint.method,
+            headers: { 'Content-Type': 'application/json', 'x-api-key': BEY_API_KEY },
+            body: JSON.stringify({ status: 'ended' }),
+          });
+          if (response.ok) { console.log(`[S2V] Ended session ${targetSessionId}`); break; }
+        } catch (err) {
+          console.warn(`[S2V] ${endpoint.url} failed:`, err.message);
+        }
+      }
+    }
+
+    if (conversationId) s2vSessions.delete(conversationId);
+    for (const [id, session] of s2vSessions) {
+      if (session.sessionId === sessionId || session.sessionId === callId) {
+        s2vSessions.delete(id);
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('BEYOND PRESENCE STOP ERROR:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// =====================
-// /api/beyondpresence/call-messages
-// =====================
-app.get('/api/beyondpresence/call-messages/:callId', async (req, res) => {
-  try {
-    if (!BEY_API_KEY) {
-      return res.status(500).json({ error: 'BEYOND_PRESENCE_API_KEY not configured' });
-    }
-
-    const { callId } = req.params;
-    const messagesRes = await fetch(`${BEY_API_BASE}/v1/calls/${callId}/messages`, {
-      headers: { 'x-api-key': BEY_API_KEY },
-    });
-
-    const messagesData = await messagesRes.json();
-    res.json(messagesData);
-  } catch (err) {
-    console.error('BEYOND PRESENCE MESSAGES ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1818,6 +2211,8 @@ app.post(
   }
 );
 
+
+
 // =====================
 // POST /api/pan/upload-desktop/:sessionId
 // =====================
@@ -1892,6 +2287,27 @@ app.get('/pan-capture/:sessionId', (req, res) => {
   }
 
   res.type('html').send(getMobileCaptureHTML(req.params.sessionId));
+});
+
+app.get("/api/livekit-token", (req, res) => {
+  try {
+    const roomName = "kyc-room";
+    const identity = "user-" + Date.now();
+
+    const token = createLiveKitJoinToken({
+      roomName,
+      identity,
+    });
+
+    res.json({
+      token,
+      livekitUrl: LIVEKIT_URL,
+      roomName,
+    });
+  } catch (err) {
+    console.error("Token error:", err);
+    res.status(500).json({ error: "Failed to create token" });
+  }
 });
 
 function getMobileCaptureHTML(sessionId) {
@@ -2034,6 +2450,6 @@ function getMobileCaptureHTML(sessionId) {
 /* =====================
    SERVER START
 ===================== */
-app.listen(3001, () => {
-  console.log('Backend running on http://localhost:3001');
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on ${PORT}`);
 });

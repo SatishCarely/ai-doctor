@@ -7,10 +7,12 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min?url';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://3jpvg3rp62.ap-south-1.awsapprunner.com";
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+
 
 const normalize = (s) =>
   String(s || "")
@@ -427,7 +429,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'text',
     section: 'Education',
     prompt: 'Please provide your education details - your highest qualification.',
-    acroFieldName: 'Please provide your education details',
+    acroFieldName: 'IF YES please give detailsPlease provide your education details',
     genderRestriction: 'all',
   },
   {
@@ -671,6 +673,9 @@ const PRESET_DEMO_KYC_FIELDS = [
     reasonResponseId: 'diagnostic_tests_reason',
     requiresReasonOnYes: true,
     genderRestriction: 'all',
+    acroYesFieldName: 'p2_q1_yes',
+    acroNoFieldName: 'p2_q1_no',
+    acroReasonFieldName: 'p2_q1_details',
   },
   {
     id: 'hiv_std',
@@ -683,6 +688,9 @@ const PRESET_DEMO_KYC_FIELDS = [
     reasonResponseId: 'hiv_std_reason',
     requiresReasonOnYes: true,
     genderRestriction: 'all',
+    acroYesFieldName: 'p2_q2_yes',
+    acroNoFieldName: 'p2_q2_no',
+    acroReasonFieldName: 'p2_q2_details',
   },
   {
     id: 'treatment_medication',
@@ -695,6 +703,99 @@ const PRESET_DEMO_KYC_FIELDS = [
     reasonResponseId: 'treatment_medication_reason',
     requiresReasonOnYes: true,
     genderRestriction: 'all',
+    acroYesFieldName: 'p2_q3_yes',
+    acroNoFieldName: 'p2_q3_no',
+    acroReasonFieldName: 'p2_q3_details',
+  },
+  {
+    id: 'hospitalization_fever_normal',
+    label: 'Hospitalization for fever and now normal',
+    type: 'yes_no',
+    section: 'Medical history',
+    prompt: 'Have you been hospitalized for any fever and are now normal?',
+    followUpIfYes: 'Please give brief details.',
+    reasonPromptLabel: 'If yes, please give details',
+    reasonResponseId: 'hospitalization_fever_normal_reason',
+    requiresReasonOnYes: true,
+    genderRestriction: 'all',
+    acroYesFieldName: 'p2_q4_yes',
+    acroNoFieldName: 'p2_q4_no',
+    acroReasonFieldName: 'p2_q4_details',
+  },
+  {
+    id: 'hospitalization_food_poisoning_normal',
+    label: 'Hospitalization for food poisoning and now normal',
+    type: 'yes_no',
+    section: 'Medical history',
+    prompt: 'Have you been hospitalized for food poisoning and are now normal?',
+    followUpIfYes: 'Please give brief details.',
+    reasonPromptLabel: 'If yes, please give details',
+    reasonResponseId: 'hospitalization_food_poisoning_normal_reason',
+    requiresReasonOnYes: true,
+    genderRestriction: 'all',
+    acroYesFieldName: 'p2_q5_yes',
+    acroNoFieldName: 'p2_q5_no',
+    acroReasonFieldName: 'p2_q5_details',
+  },
+  {
+    id: 'hospitalization_accident_alright',
+    label: 'Hospitalization after an accident and now alright',
+    type: 'yes_no',
+    section: 'Medical history',
+    prompt: 'Have you been hospitalized after an accident and are now alright?',
+    followUpIfYes: 'Please give brief details.',
+    reasonPromptLabel: 'If yes, please give details',
+    reasonResponseId: 'hospitalization_accident_alright_reason',
+    requiresReasonOnYes: true,
+    genderRestriction: 'all',
+    acroYesFieldName: 'p2_q6_yes',
+    acroNoFieldName: 'p2_q6_no',
+    acroReasonFieldName: 'p2_q6_details',
+  },
+  {
+    id: 'hospitalization_common_surgeries',
+    label: 'Hospitalized for C-section, stone removal, appendicectomy, piles, or hernia',
+    type: 'yes_no',
+    section: 'Medical history',
+    prompt: 'Have you been hospitalized for C-section, stone removal, appendicectomy, piles, or hernia?',
+    followUpIfYes: 'Please give brief details.',
+    reasonPromptLabel: 'If yes, please give details',
+    reasonResponseId: 'hospitalization_common_surgeries_reason',
+    requiresReasonOnYes: true,
+    genderRestriction: 'all',
+    acroYesFieldName: 'p2_q7_yes',
+    acroNoFieldName: 'p2_q7_no',
+    acroReasonFieldName: 'p2_q7_details',
+  },
+  {
+    id: 'hospitalization_infection_recovery',
+    label: 'Hospitalized for malaria, typhoid, dengue, gastroenteritis, or dehydration and now normal',
+    type: 'yes_no',
+    section: 'Medical history',
+    prompt: 'Have you been hospitalized for malaria, typhoid, dengue, gastroenteritis, or dehydration and are now normal?',
+    followUpIfYes: 'Please give brief details.',
+    reasonPromptLabel: 'If yes, please give details',
+    reasonResponseId: 'hospitalization_infection_recovery_reason',
+    requiresReasonOnYes: true,
+    genderRestriction: 'all',
+    acroYesFieldName: 'p2_q8_yes',
+    acroNoFieldName: 'p2_q8_no',
+    acroReasonFieldName: 'p2_q8_details',
+  },
+  {
+    id: 'other_hospitalization_details',
+    label: 'Any other hospitalization details',
+    type: 'yes_no',
+    section: 'Medical history',
+    prompt: 'Are there any other hospitalization details you want to furnish?',
+    followUpIfYes: 'Please give brief details.',
+    reasonPromptLabel: 'If yes, please give details',
+    reasonResponseId: 'other_hospitalization_details_reason',
+    requiresReasonOnYes: true,
+    genderRestriction: 'all',
+    acroYesFieldName: 'p2_q9_yes',
+    acroNoFieldName: 'p2_q9_no',
+    acroReasonFieldName: 'p2_q9_details',
   },
   {
     id: 'off_work_illness',
@@ -707,6 +808,9 @@ const PRESET_DEMO_KYC_FIELDS = [
     reasonResponseId: 'off_work_illness_reason',
     requiresReasonOnYes: true,
     genderRestriction: 'all',
+    acroYesFieldName: 'p2_q10_yes',
+    acroNoFieldName: 'p2_q10_no',
+    acroReasonFieldName: 'p2_q10_details',
   },
   {
     id: 'other_disease',
@@ -719,6 +823,9 @@ const PRESET_DEMO_KYC_FIELDS = [
     reasonResponseId: 'other_disease_reason',
     requiresReasonOnYes: true,
     genderRestriction: 'all',
+    acroYesFieldName: 'p2_q11_yes',
+    acroNoFieldName: 'p2_q11_no',
+    acroReasonFieldName: 'p2_q11_details',
   },
   {
     id: 'travel_outside_india',
@@ -727,6 +834,9 @@ const PRESET_DEMO_KYC_FIELDS = [
     section: 'Travel',
     prompt: 'Do you intend to travel outside India within the next 3 months?',
     genderRestriction: 'all',
+    acroYesFieldName: 'p2_q12_yes',
+    acroNoFieldName: 'p2_q12_no',
+    acroReasonFieldName: 'p2_q12_details',
   },
   {
     id: 'height_cm',
@@ -734,7 +844,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'number',
     section: 'Physical',
     prompt: 'What is your height in centimeters?',
-    acroFieldName: 'Height in cm',
+    acroFieldName: 'p2_field_13',
     genderRestriction: 'all',
   },
   {
@@ -743,7 +853,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'number',
     section: 'Physical',
     prompt: 'What is your weight in kilograms?',
-    acroFieldName: 'Weight in kgs',
+    acroFieldName: 'p2_field_14',
     genderRestriction: 'all',
   },
   {
@@ -752,7 +862,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'text',
     section: 'Habits',
     prompt: 'Do you have any habits or addictions such as smoking, chewing tobacco, drinking alcohol, or using any drugs? If none, say none.',
-    acroFieldName: 'Habits  Addictions  Cigbeedicgar  GutkSnuffPaan  BeerWineHard Liquor  Any Drugs',
+    acroFieldName: 'p2_field_15',
     genderRestriction: 'all',
   },
   {
@@ -761,6 +871,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'text',
     section: 'Insurance',
     prompt: 'Do you have any existing insurance cover? If yes, please provide the details. If none, say none.',
+    acroFieldName: 'p2_field_16',
     genderRestriction: 'all',
   },
   {
@@ -769,6 +880,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'number',
     section: 'Insurance',
     prompt: 'What is the total value of all your life cover together? Please give the amount in numbers.',
+    acroFieldName: 'p2_field_17',
     genderRestriction: 'all',
   },
   {
@@ -777,6 +889,7 @@ const PRESET_DEMO_KYC_FIELDS = [
     type: 'number',
     section: 'Insurance',
     prompt: 'What is the total value of your critical illness cover? If none, say zero.',
+    acroFieldName: 'p2_field_18',
     genderRestriction: 'all',
   },
   {
@@ -1182,6 +1295,7 @@ const isKycFieldAwaitingReason = (field, responses = {}) =>
   );
 
 const isKycFieldComplete = (field, responses = {}) => {
+  if (shouldSkipFieldForGender(field, responses)) return true;
   if (!hasMeaningfulKycValue(responses[field.id])) return false;
   if (!field?.requiresReasonOnYes) return true;
   if (responses[field.id] !== 'Yes') return true;
@@ -1202,17 +1316,14 @@ const autoSkipGenderedFields = (fields, currentResponses, genderValue, fromIndex
 
   for (let i = 0; i < fields.length; i += 1) {
     const field = fields[i];
-    if (isMale && field.genderRestriction === 'female' && field.type === 'yes_no') {
-      updatedResponses[field.id] = 'No';
-      if (field.reasonResponseId) {
-        updatedResponses[field.reasonResponseId] = '';
-      }
-    }
+    const shouldSkip =
+      (isMale && field.genderRestriction === 'female') ||
+      (isFemale && field.genderRestriction === 'male');
 
-    if (isFemale && field.genderRestriction === 'male' && field.type === 'yes_no') {
-      updatedResponses[field.id] = 'No';
+    if (shouldSkip) {
+      delete updatedResponses[field.id];
       if (field.reasonResponseId) {
-        updatedResponses[field.reasonResponseId] = '';
+        delete updatedResponses[field.reasonResponseId];
       }
     }
   }
@@ -1435,6 +1546,7 @@ const resolveAgentAskedFieldIndex = (text, fields, responses, fallbackIndex, las
 };
 
 const getKycFieldDisplayValue = (field, responses = {}) => {
+  if (shouldSkipFieldForGender(field, responses)) return 'Skipped';
   const value = responses[field.id];
   if (!hasMeaningfulKycValue(value)) return '';
 
@@ -2364,7 +2476,9 @@ const CarelyAIAssistant = () => {
   const [preferredLanguage, setPreferredLanguage] = useState('en');
 
   const [activeTab, setActiveTab] = useState('call-logs');
-  
+  const [livekitToken, setLivekitToken] = useState(null);
+  const [livekitUrl, setLivekitUrl] = useState(null);
+
   // Call Analysis State
   const [callFile, setCallFile] = useState(null);
   const [callTranscript, setCallTranscript] = useState('');
@@ -2402,6 +2516,7 @@ const [hospitalLogo, setHospitalLogo] = useState(null);
   const [isKycLoading, setIsKycLoading] = useState(false);
   const [kycComplete, setKycComplete] = useState(false);
   const [isExtractingFields, setIsExtractingFields] = useState(false);
+  const [kycLoadError, setKycLoadError] = useState('');
   const [kycDocumentText, setKycDocumentText] = useState('');
   const [kycFieldMappings, setKycFieldMappings] = useState([]);
 const [kycPdfBytes, setKycPdfBytes] = useState(null);
@@ -2431,6 +2546,7 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
   const [beyondPresenceSession, setBeyondPresenceSession] = useState(null);
   const [isConnectingAvatar, setIsConnectingAvatar] = useState(false);
   const [isAvatarConnected, setIsAvatarConnected] = useState(false);
+  const [avatarConnectionBlockedMessage, setAvatarConnectionBlockedMessage] = useState('');
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [panCaptureComplete, setPanCaptureComplete] = useState(false);
@@ -2461,6 +2577,23 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
   const callAudioChunksRef = useRef([]);
   const callRecordingAudioContextRef = useRef(null);
   const callRecordingSourcesRef = useRef([]);
+  const [sessionId, setSessionId] = useState(null);
+
+  useEffect(() => {
+    const initLiveKit = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/livekit-token`);
+        const data = await res.json();
+
+        setLivekitToken(data.token);
+        setLivekitUrl(data.livekitUrl);
+      } catch (err) {
+        console.error("LiveKit init error", err);
+      }
+    };
+
+    initLiveKit();
+  }, []);
 
   const stopUserCamera = () => {
     if (userCameraStreamRef.current) {
@@ -2514,22 +2647,8 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
     }
   };
 
-  const toggleMute = async () => {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-
-    try {
-      const room = beyondPresenceRoomRef.current;
-      if (room?.localParticipant) {
-        await room.localParticipant.setMicrophoneEnabled(!nextMuted, {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        });
-      }
-    } catch (err) {
-      console.error('Mute toggle failed:', err);
-    }
+  const toggleMute = () => {
+    setIsMuted((prev) => !prev);
   };
 
   const releaseCallRecordingResources = () => {
@@ -2761,8 +2880,10 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
   };
 
   const initBeyondPresence = async () => {
-    if (beyondPresenceSession || isConnectingAvatar || !kycFields.length || !panCaptureComplete) return;
+    if (beyondPresenceSession || isConnectingAvatar || !kycFields.length || !panCaptureComplete || avatarConnectionBlockedMessage) return;
+     await unlockAudio();
     setIsConnectingAvatar(true);
+    setAvatarConnectionBlockedMessage('');
 
     try {
       const currentResponses = kycResponsesRef.current;
@@ -2775,8 +2896,6 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
 
       if (!remainingFields.length) {
         kycCompleteRef.current = true;
-        setKycComplete(true);
-        return;
       }
 
       const openingField = remainingFields[0];
@@ -2804,14 +2923,25 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
 
       const data = await res.json();
       if (!res.ok || data.error) {
-        throw new Error(getReadableErrorMessage(data.error || data, 'Failed to start Beyond Presence session'));
+        const readableError = getReadableErrorMessage(data.error || data, 'Failed to start Beyond Presence session');
+        if (
+          data?.code === 'beyondpresence_plan_upgrade_required' ||
+          data?.code === 'livekit_not_configured' ||
+          data?.code === 'beyondpresence_not_configured' ||
+          data?.retryable === false ||
+          /cannot create calls via api|upgrade your plan/i.test(readableError)
+        ) {
+          setAvatarConnectionBlockedMessage(readableError);
+          return;
+        }
+        throw new Error(readableError);
       }
 
-      setBeyondPresenceSession(data);
-      console.log('[BeyondPresence] Session ready:', data.callId);
+      setSessionId(data.sessionId); // ✅ ADD THIS
+      console.log('[BeyondPresence] Session ready:', data.agentId || data.mode || 'unknown');
     } catch (err) {
       console.error('Beyond Presence init failed:', err);
-      alert('Could not connect avatar: ' + getReadableErrorMessage(err, 'Failed to start Beyond Presence session'));
+      alert('Could not connect avatar: ' + getReadableErrorMessage(err, 'Failed to start session'));
     } finally {
       setIsConnectingAvatar(false);
     }
@@ -3118,10 +3248,10 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
   };
 
   useEffect(() => {
-    if (!kycFile || !kycFields.length || kycComplete || isExtractingFields || !panCaptureComplete) return;
+    if (!kycFile || !kycFields.length || kycComplete || isExtractingFields || !panCaptureComplete || avatarConnectionBlockedMessage) return;
     if (beyondPresenceSession || isConnectingAvatar) return;
     initBeyondPresence();
-  }, [isConnectingAvatar, isExtractingFields, kycComplete, kycFields, kycFile, beyondPresenceSession, panCaptureComplete]);
+  }, [avatarConnectionBlockedMessage, isConnectingAvatar, isExtractingFields, kycComplete, kycFields, kycFile, beyondPresenceSession, panCaptureComplete]);
 
   useEffect(() => {
     kycResponsesRef.current = kycResponses;
@@ -3146,56 +3276,74 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
   });
 
   useEffect(() => {
-    const callId = beyondPresenceSession?.callId;
-    if (!callId) return undefined;
+    const agentId = beyondPresenceSession?.agentId;
+    const sessionMode = beyondPresenceSession?.mode;
+    if (!agentId || sessionMode !== 'iframe_embed') return undefined;
 
     let cancelled = false;
-    let timerId = null;
 
     const pollMessages = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/beyondpresence/call-messages/${callId}`);
+        const res = await fetch(`${API_BASE}/api/beyondpresence/agent-call-messages/${agentId}`);
         const data = await res.json();
-        if (!res.ok || data.error) {
-          throw new Error(data.error || 'Failed to sync call messages');
+        if (cancelled) return;
+        if (!res.ok || data?.error) {
+          console.error('Beyond Presence message poll failed:', data?.error || res.statusText);
+          return;
         }
 
-        const messages = extractCallMessages(data);
-        for (let index = 0; index < messages.length; index += 1) {
-          const message = messages[index];
-          const text = extractTranscriptText(message);
-          const role = extractTranscriptRole(message);
-          if (!text || !role) continue;
+        const call = data?.call || null;
+        const callId = data?.callId || null;
+        const isCallActive = Boolean(callId) && !call?.ended_at;
+        setIsAvatarConnected(isCallActive);
 
-          const rawKey =
+        if (!isCallActive) {
+          setKycListening(false);
+          setKycSpeaking(false);
+        }
+
+        const messages = Array.isArray(data?.messages) ? data.messages : [];
+        messages.forEach((message, index) => {
+          const text = String(message?.message || message?.text || message?.content || '').trim();
+          if (!text) return;
+
+          const sender = String(message?.sender || message?.role || '').toLowerCase();
+          const eventKey = String(
             message?.id ||
-            message?.message_id ||
-            message?.uuid ||
-            message?.created_at ||
-            message?.timestamp ||
-            `idx_${index}_${normalize(text)}`;
+            `${callId || agentId}_${sender}_${message?.sent_at || message?.created_at || index}_${text}`
+          );
 
-          if (role === 'user') {
-            await transcriptHandlerRefs.current.onUser?.(text, { eventKey: `poll_${rawKey}` });
-          } else if (role === 'assistant') {
-            transcriptHandlerRefs.current.onAgent?.(text, { eventKey: `poll_${rawKey}` });
+          if (sender === 'user') {
+            transcriptHandlerRefs.current.onUser?.(text, {
+              source: 'beyondpresence_poll',
+              eventKey,
+            });
+            return;
           }
-        }
+
+          transcriptHandlerRefs.current.onAgent?.(text, {
+            source: 'beyondpresence_poll',
+            eventKey,
+          });
+        });
       } catch (err) {
         if (!cancelled) {
-          console.warn('Beyond Presence message sync failed:', err);
+          console.error('Beyond Presence poll failed:', err);
         }
       }
     };
 
     pollMessages();
-    timerId = window.setInterval(pollMessages, 2000);
+    const timerId = window.setInterval(pollMessages, 2000);
 
     return () => {
       cancelled = true;
-      if (timerId) window.clearInterval(timerId);
+      window.clearInterval(timerId);
+      setIsAvatarConnected(false);
+      setKycListening(false);
+      setKycSpeaking(false);
     };
-  }, [beyondPresenceSession?.callId]);
+  }, [API_BASE, beyondPresenceSession?.agentId, beyondPresenceSession?.mode]);
 
   useEffect(() => {
     if (isAvatarConnected && cameraEnabled) {
@@ -3206,19 +3354,6 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
     stopUserCamera();
     return undefined;
   }, [cameraEnabled, isAvatarConnected]);
-
-  useEffect(() => {
-    const room = beyondPresenceRoomRef.current;
-    if (!isAvatarConnected || !room?.localParticipant) return;
-
-    room.localParticipant.setMicrophoneEnabled(!isMuted, {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-    }).catch((err) => {
-      console.error('Mic sync failed:', err);
-    });
-  }, [isAvatarConnected, isMuted]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -3255,7 +3390,7 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
         }).catch(() => {});
       }
     };
-  }, [beyondPresenceSession]);
+  }, [API_BASE, beyondPresenceSession]);
 
   const localizeKycText = async (text, languageCode = preferredLanguage) => {
     const trimmed = String(text || '').trim();
@@ -3800,12 +3935,8 @@ const unlockAudio = async () => {
 };
 
 const audioRef = useRef(null);
-
 const audioUnlockedRef = useRef(false);
 const audioContextRef = useRef(null);
-if (!audioContextRef.current) {
-  audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-}
 
 const setLoggedKycSpeaking = (value) => {
   console.log(`setKycSpeaking ${value ? 'true' : 'false'}`);
@@ -4225,6 +4356,7 @@ for (let i = 1; i <= maxPagesText; i++) {
 // ============================================================
 const loadPresetKycDocument = async () => {
   resetKyc();
+  setKycLoadError('');
   setIsExtractingFields(true);
 
   try {
@@ -4244,6 +4376,7 @@ const loadPresetKycDocument = async () => {
     setKycFieldMappings([]);
     setKycFields(PRESET_DEMO_KYC_FIELDS.map((field) => ({ ...field })));
   } catch (error) {
+    setKycLoadError(error.message || 'Failed to load KYC document');
     setKycChatMessages([
       {
         role: 'assistant',
@@ -4529,6 +4662,7 @@ const resetKyc = () => {
   setBeyondPresenceSession(null);
   setIsConnectingAvatar(false);
   setIsAvatarConnected(false);
+  setAvatarConnectionBlockedMessage('');
   setCameraEnabled(true);
   setIsMuted(false);
   setPanCaptureComplete(false);
@@ -4555,6 +4689,7 @@ const resetKyc = () => {
   setKycChatInput('');
   setKycComplete(false);
   setIsExtractingFields(false);
+  setKycLoadError('');
   setKycDocumentText('');
   setKycFieldMappings([]);
   setKycPdfBytes(null);
@@ -4571,6 +4706,8 @@ const restartPresetKycDocument = () => {
     console.error('Failed to reload preset KYC document:', err);
   });
 };
+
+const isManagedIframeMode = beyondPresenceSession?.mode === 'iframe_embed';
 
 
 const sendKycChatMessage = async () => {
@@ -4738,7 +4875,7 @@ const sendKycChatMessage = async () => {
       }
     }
   } catch (error) {
-    setKycChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${error.message}`, isError: true }]);
+    setKycChatMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error.message}`, isError: true }]);
   } finally {
     setIsKycLoading(false);
   }
@@ -4872,6 +5009,17 @@ const downloadEditableKyc = async () => {
 
   return (
       <div style={styles.container}>
+
+      {livekitToken && livekitUrl && (
+        <BeyondPresenceStream
+          livekitUrl={livekitUrl}
+          livekitToken={livekitToken}
+          apiBase={API_BASE}
+          onUserTranscription={() => { }}
+          onAgentTranscription={() => { }}
+          sessionId={sessionId} 
+        />
+      )}
         {/* Sidebar */}
         <aside style={styles.sidebar}>
           <div style={styles.logoContainer}><div style={styles.logoIcon}><img src={CarelyLogoIcon} alt="Carely" style={{ width:'36px', height:'36px', objectFit:'contain' }} /></div></div>
@@ -5074,7 +5222,7 @@ const downloadEditableKyc = async () => {
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                         Download Filled PDF
                       </button>
-                      {callRecordingBlob && !callTranscription && (
+                      {!isManagedIframeMode && callRecordingBlob && !callTranscription && (
                         <button
                           style={{ ...ft.dlBtn, background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}
                           onClick={transcribeRecording}
@@ -5093,7 +5241,7 @@ const downloadEditableKyc = async () => {
                           )}
                         </button>
                       )}
-                      {callTranscription && (
+                      {!isManagedIframeMode && callTranscription && (
                         <button style={{ ...ft.dlBtn, background: 'linear-gradient(135deg,#f59e0b,#d97706)' }} onClick={downloadTranscription}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                           Download Transcript
@@ -5120,7 +5268,7 @@ const downloadEditableKyc = async () => {
                       <span style={ft.docSub}>Carely Health</span>
                     </div>
                     <div style={ft.topR}>
-                      {isRecordingCall && (
+                      {!isManagedIframeMode && isRecordingCall && (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#ef4444', fontWeight: 600 }}>
                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'fadeInOut 1s ease-in-out infinite' }} />
                           REC
@@ -5156,7 +5304,20 @@ const downloadEditableKyc = async () => {
                         <p style={{ color: '#a78bfa', fontSize: 15, marginTop: 18 }}>Preparing your session...</p>
                       </div>
                     ) : !kycFile ? (
-                      <div style={ft.mid}><p style={{ color: '#475569', fontSize: 15 }}>Loading FMR document...</p></div>
+                      kycLoadError ? (
+                        <div style={ft.mid}>
+                          <div style={ft.errBox}>
+                            <p style={ft.errTitle}>FMR load failed</p>
+                            <p style={ft.errText}>{kycLoadError}</p>
+                            <p style={ft.errHint}>Make sure the backend is running on {API_BASE} and then retry.</p>
+                          </div>
+                          <button onClick={loadPresetKycDocument} style={{ ...ft.callBtn, marginTop: 18 }}>
+                            Retry Loading FMR
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={ft.mid}><p style={{ color: '#475569', fontSize: 15 }}>Loading FMR document...</p></div>
+                      )
                     ) : !panCaptureComplete ? (
                       <PanCardCapture
                         apiBase={API_BASE}
@@ -5174,28 +5335,36 @@ const downloadEditableKyc = async () => {
                         <p style={{ color: '#34d399', fontSize: 24, fontWeight: 700, margin: '0 0 8px' }}>Verification Complete</p>
                         <p style={{ color: '#64748b', fontSize: 14 }}>Download your filled FMR from the left panel</p>
                       </div>
+                    ) : beyondPresenceSession?.mode === 'iframe_embed' ? (
+                      <div style={ft.embedShell}>
+                        <iframe
+                          title="Dr. Christiana"
+                          src={beyondPresenceSession.agentUrl}
+                          allow="camera; microphone; autoplay; fullscreen"
+                          allowFullScreen
+                          style={ft.embedFrame}
+                        />
+                      </div>
                     ) : beyondPresenceSession ? (
-                      <BeyondPresenceStream
-                        livekitUrl={beyondPresenceSession.livekitUrl}
-                        livekitToken={beyondPresenceSession.livekitToken}
-                        onUserTranscription={handleUserTranscription}
-                        onAgentTranscription={handleAgentTranscription}
-                        onConnected={() => {
-                          setIsAvatarConnected(true);
-                          window.setTimeout(() => startCallRecording(), 1500);
-                        }}
-                        onDisconnected={() => {
-                          setIsAvatarConnected(false);
-                          stopCallRecording();
-                          stopUserCamera();
-                        }}
-                        onRoomRef={(room) => {
-                          beyondPresenceRoomRef.current = room;
-                        }}
-                      />
+                              // AFTER — add conversationId, apiBase, preferredLanguage, initialGreetingAudioBase64
+                              <BeyondPresenceStream
+                                livekitUrl={livekitUrl}
+                                livekitToken={livekitToken}
+                                apiBase={API_BASE}
+                                preferredLanguage={preferredLanguage}
+                                onUserTranscription={handleUserTranscription}
+                                onAgentTranscription={handleAgentTranscription}
+                              />
                     ) : (
                       <div style={ft.mid}>
-                        <button onClick={initBeyondPresence} disabled={isConnectingAvatar || !kycFields.length} style={ft.callBtn}>
+                        <button
+                          onClick={initBeyondPresence}
+                          disabled={isConnectingAvatar || !kycFields.length || Boolean(avatarConnectionBlockedMessage)}
+                          style={{
+                            ...ft.callBtn,
+                            ...(avatarConnectionBlockedMessage ? ft.callBtnDisabled : {}),
+                          }}
+                        >
                           {isConnectingAvatar ? (
                             <>
                               <div style={{ width: 22, height: 22, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: 12 }} />
@@ -5208,6 +5377,13 @@ const downloadEditableKyc = async () => {
                             </>
                           )}
                         </button>
+                        {avatarConnectionBlockedMessage && (
+                          <div style={ft.errBox}>
+                            <p style={ft.errTitle}>Avatar connection blocked</p>
+                            <p style={ft.errText}>{avatarConnectionBlockedMessage}</p>
+                            <p style={ft.errHint}>Please verify the Beyond Presence agent setup and then restart the session.</p>
+                          </div>
+                        )}
                         <p style={{ color: '#475569', fontSize: 13, marginTop: 18, maxWidth: 300, textAlign: 'center', lineHeight: 1.6 }}>
                           Connect with Dr. Christiana for your FMR verification
                         </p>
@@ -5215,7 +5391,7 @@ const downloadEditableKyc = async () => {
                     )}
                   </div>
 
-                  {isAvatarConnected && (
+                  {isAvatarConnected && !isManagedIframeMode && (
                     <div style={{ ...ft.pip, ...(!cameraEnabled ? ft.pipOff : {}) }}>
                       {cameraEnabled ? (
                         <video ref={userVideoRef} autoPlay playsInline muted style={ft.pipVid} />
@@ -5248,27 +5424,35 @@ const downloadEditableKyc = async () => {
                   )}
 
                   {isAvatarConnected && getCompletedKycFieldCount(kycFields, kycResponses) < kycFields.length && (
-                    <div style={ft.ctrls}>
-                      <button style={{ ...ft.cBtn, ...(isMuted ? ft.cBtnOn : {}) }} onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
-                        {isMuted ? (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23" /><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" /><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.49-.35 2.17" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
-                        ) : (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
-                        )}
-                      </button>
+                    isManagedIframeMode ? (
+                      <div style={ft.ctrls}>
+                        <button style={ft.endBtn} onClick={resetKyc} title="End Session">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71s-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" /></svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={ft.ctrls}>
+                        <button style={{ ...ft.cBtn, ...(isMuted ? ft.cBtnOn : {}) }} onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
+                          {isMuted ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23" /><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" /><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.49-.35 2.17" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
+                          ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
+                          )}
+                        </button>
 
-                      <button style={ft.endBtn} onClick={resetKyc} title="End Call">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71s-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" /></svg>
-                      </button>
+                        <button style={ft.endBtn} onClick={resetKyc} title="End Call">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71s-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" /></svg>
+                        </button>
 
-                      <button style={{ ...ft.cBtn, ...(!cameraEnabled ? ft.cBtnOn : {}) }} onClick={toggleCamera} title={cameraEnabled ? 'Camera off' : 'Camera on'}>
-                        {cameraEnabled ? (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
-                        ) : (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-                        )}
-                      </button>
-                    </div>
+                        <button style={{ ...ft.cBtn, ...(!cameraEnabled ? ft.cBtnOn : {}) }} onClick={toggleCamera} title={cameraEnabled ? 'Camera off' : 'Camera on'}>
+                          {cameraEnabled ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
+                          ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                          )}
+                        </button>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -5439,8 +5623,15 @@ const downloadEditableKyc = async () => {
       cursor: 'not-allowed',
     },
     vidArea: { flex: 1, display: 'flex', alignItems: 'stretch', justifyContent: 'stretch' },
+    embedShell: { width: '100%', height: '100%', background: '#05070d' },
+    embedFrame: { width: '100%', height: '100%', border: 'none', display: 'block', background: '#05070d' },
     mid: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' },
     callBtn: { padding: '18px 36px', background: 'linear-gradient(135deg,#22c55e,#16a34a)', border: 'none', borderRadius: 18, color: '#fff', fontSize: 17, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 40px rgba(34,197,94,0.35)' },
+    callBtnDisabled: { opacity: 0.45, cursor: 'not-allowed', boxShadow: 'none' },
+    errBox: { marginTop: 16, maxWidth: 360, padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(248,113,113,0.2)', background: 'rgba(127,29,29,0.18)', backdropFilter: 'blur(10px)' },
+    errTitle: { margin: 0, color: '#fca5a5', fontSize: 13, fontWeight: 700 },
+    errText: { margin: '8px 0 0', color: '#fecaca', fontSize: 12, lineHeight: 1.5 },
+    errHint: { margin: '8px 0 0', color: '#cbd5e1', fontSize: 11, lineHeight: 1.5 },
     pip: { position: 'absolute', bottom: 90, right: 20, width: 130, height: 175, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.15)', zIndex: 15, background: '#111' },
     pipOff: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
     pipVid: { width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' },
