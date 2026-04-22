@@ -2879,11 +2879,17 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
     return true;
   };
 
+  const connectAttemptRef = useRef(0);
+
   const initBeyondPresence = async () => {
-    if (beyondPresenceSession || isConnectingAvatar || !kycFields.length || !panCaptureComplete || avatarConnectionBlockedMessage) return;
+     const attempt = ++connectAttemptRef.current;
+    if (beyondPresenceSession || isConnectingAvatar || !kycFields.length || !panCaptureComplete || avatarConnectionBlockedMessage || isAvatarConnected) return;
      await unlockAudio();
     setIsConnectingAvatar(true);
     setAvatarConnectionBlockedMessage('');
+
+      await new Promise(r => setTimeout(r, attempt === 1 ? 0 : 3000 * attempt));
+  if (connectAttemptRef.current !== attempt) return; // stale attempt
 
     try {
       const currentResponses = kycResponsesRef.current;
@@ -2938,6 +2944,14 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
       }
 
       setSessionId(data.sessionId); // ✅ ADD THIS
+      setBeyondPresenceSession({
+        mode: data.mode,
+        conversationId: data.conversationId,
+        livekitUrl: data.livekitUrl,
+        livekitToken: data.livekitToken,
+      });
+      setLivekitToken(data.livekitToken);
+      setLivekitUrl(data.livekitUrl);
       console.log('[BeyondPresence] Session ready:', data.agentId || data.mode || 'unknown');
     } catch (err) {
       console.error('Beyond Presence init failed:', err);
@@ -3108,6 +3122,21 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
         };
         lastAnswerTimestampRef.current = Date.now();
         advanceKycToNextPendingField(nextResponses, targetFieldIndex + 1);
+        const nextIndex = findNextPendingKycFieldIndex(
+          kycFields,
+          nextResponses,
+          targetFieldIndex + 1
+        );
+
+        const nextField = kycFields[nextIndex];
+
+        if (nextField && window.sendQuestionToAgent) {
+          console.log("➡️ Asking next question:", nextField.prompt);
+
+          setTimeout(() => {
+            window.sendQuestionToAgent(nextField.prompt);
+          }, 800);
+}
         return;
       }
 
@@ -3163,6 +3192,23 @@ const [kycPageDimensions, setKycPageDimensions] = useState([]);
       }
 
       advanceKycToNextPendingField(nextResponses, targetFieldIndex + 1);
+
+      const nextIndex = findNextPendingKycFieldIndex(
+        kycFields,
+        nextResponses,
+        targetFieldIndex + 1
+      );
+
+      const nextField = kycFields[nextIndex];
+
+      if (nextField && window.sendQuestionToAgent) {
+        console.log("➡️ Asking next question:", nextField.prompt);
+
+        setTimeout(() => {
+          window.sendQuestionToAgent(nextField.prompt);
+        }, 800);
+      }
+
     } catch (err) {
       console.error('Answer processing error:', err);
     } finally {
@@ -5009,17 +5055,6 @@ const downloadEditableKyc = async () => {
 
   return (
       <div style={styles.container}>
-
-      {livekitToken && livekitUrl && (
-        <BeyondPresenceStream
-          livekitUrl={livekitUrl}
-          livekitToken={livekitToken}
-          apiBase={API_BASE}
-          onUserTranscription={() => { }}
-          onAgentTranscription={() => { }}
-          sessionId={sessionId} 
-        />
-      )}
         {/* Sidebar */}
         <aside style={styles.sidebar}>
           <div style={styles.logoContainer}><div style={styles.logoIcon}><img src={CarelyLogoIcon} alt="Carely" style={{ width:'36px', height:'36px', objectFit:'contain' }} /></div></div>
@@ -5348,12 +5383,28 @@ const downloadEditableKyc = async () => {
                     ) : beyondPresenceSession ? (
                               // AFTER — add conversationId, apiBase, preferredLanguage, initialGreetingAudioBase64
                               <BeyondPresenceStream
-                                livekitUrl={livekitUrl}
-                                livekitToken={livekitToken}
+                                livekitUrl={beyondPresenceSession?.livekitUrl}
+                                livekitToken={beyondPresenceSession?.livekitToken}
                                 apiBase={API_BASE}
                                 preferredLanguage={preferredLanguage}
                                 onUserTranscription={handleUserTranscription}
                                 onAgentTranscription={handleAgentTranscription}
+
+                                onRoomReady={({ sendQuestionToAgent }) => {
+                                  window.sendQuestionToAgent = sendQuestionToAgent;
+                                }}
+
+                                onConnected={() => {
+                                  console.log("🔥 CONNECTED TRIGGER");
+
+                                  const firstQuestion = PRESET_DEMO_KYC_FIELDS[0].prompt;
+
+                                  setTimeout(() => {
+                                    console.log("🚀 Sending first question AFTER DELAY");
+
+                                    window.sendQuestionToAgent(firstQuestion);
+                                  }, 3000); // 🔥 IMPORTANT
+                                }}
                               />
                     ) : (
                       <div style={ft.mid}>
